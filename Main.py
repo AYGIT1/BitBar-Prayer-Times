@@ -1,11 +1,15 @@
 import requests
+import json
 
-Country_to_search = "TURKEY"  # Ülke
-Province_to_search = "ANKARA"  # Şehir
-District_to_search = "cankaya"  # İlçe
+# TODO: Exception handling
 
 
 def get_prayer_times():
+
+    Country_to_search = "TURKEY"  # Ülke
+    Province_to_search = "ANKARA"  # Şehir
+    District_to_search = "ANKARA"  # İlçe
+
     # Find country ID
     countries = requests.get("http://ezanvakti.herokuapp.com/ulkeler")
     for data_country in countries.json():
@@ -23,20 +27,21 @@ def get_prayer_times():
     url_district = "http://ezanvakti.herokuapp.com/ilceler?sehir=" + province_id
     districts = requests.get(url_district)
     for data_district in districts.json():
-        if data_district["IlceAdiEn"] == Province_to_search.upper():
-            print(data_district)
+        if data_district["IlceAdiEn"] == District_to_search.upper():
             district_id = data_district["IlceID"]
 
+    # Get prayer times for the district
     url_prayer = "http://ezanvakti.herokuapp.com/vakitler?ilce=" + district_id
     prayer = requests.get(url_prayer)
-    print(prayer.json())
     return prayer.json()
 
 
-def write_to_file():
+def write_to_file(data):
     file = open("test.ezan", mode='w', encoding='utf-8')
+    for element in data:
+        file.write(json.dumps(element) + "/n")
+    file.close()
     return
 
 
-print("test")
-get_prayer_times()
+write_to_file(get_prayer_times())
