@@ -37,6 +37,7 @@ def get_prayer_times():
     return prayer.json()
 
 
+<<<<<<< HEAD
 def write_to_file(filename, data):
     file = open(filename + ".ezan", mode='w', encoding='utf-8')
     file.write(json.dumps(data))
@@ -53,6 +54,14 @@ def read_file(filename):
         if day["MiladiTarihKisa"] == present_day:
             print(day["Aksam"])
 
+=======
+def write_to_file(data):
+    file = open("test.ezan", mode='w', encoding='utf-8')
+    for element in data:
+        file.write(json.dumps(element) + "/n")
+    file.close()
+    return
+>>>>>>> parent of 619c7a0... minor performance changes and code quality improvements
 
 #write_to_file("testfile01", get_prayer_times())
 read_file("testfile01")
