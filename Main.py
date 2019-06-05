@@ -1,22 +1,34 @@
 import requests
 import json
 import datetime
+import sys
 
-# TODO: Exception handling
+
+# TODO: MORE Exception handling!
+# TODO: Too many recurring lines, try to use loops.
+
+
+def errprint(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
 
 
 def get_prayer_times():
-
     country = "TURKEY"  # Ülke
     province = "ANKARA"  # Şehir
     district = "ANKARA"  # İlçe
     url = "https://ezanvakti.herokuapp.com"
 
     # Find country ID
-    countries = requests.get(url + "/ulkeler")
-    for data_country in countries.json():
-        if data_country["UlkeAdiEn"] == country.upper():
-            country_id = data_country["UlkeID"]
+    try:
+        countries = requests.get(url + "/ulkeler")
+        for data_country in countries.json():
+            if data_country["UlkeAdiEn"] == country.upper():
+                country_id = data_country["UlkeID"]
+    except:
+        if str(countries) == '<Response [429]>':
+            errprint('HTTP error 429 (Too Many Requests)')
+        else:
+            errprint('No network')
 
     # Find province ID
     provinces = requests.get(url + f"/sehirler?ulke={country_id}")
@@ -41,10 +53,23 @@ def write_to_file(data):
 
 
 def convert_datetime(filename):
-    with open(filename, mode='r', encoding='utf-8') as json_file:
-        data = json.loads(json_file.read())
+    try:
+        with open(filename, mode='r', encoding='utf-8') as json_file:
+            try:
+                data = json.loads(json_file.read())
+            except json.decoder.JSONDecodeError:
+                errprint("Cache file corrupted, downloading file...")
+                write_to_file(get_prayer_times())
+                convert_datetime('.ptimes.json')
+    except FileNotFoundError:
+        print("Cache file not found, downloading file...")
+        write_to_file(get_prayer_times())
+        convert_datetime('.ptimes.json')
+
     present_time = datetime.datetime.now()
+    present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
     for ptime in data:
+        next_date = present_time + datetime.timedelta(days=1)
         if ptime["MiladiTarihKisa"] == present_time.strftime('%d.%m.%Y'):
             maghrib = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Aksam"], '%d.%m.%Y%H:%M')
             sunrise = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Gunes"], '%d.%m.%Y%H:%M')
@@ -53,33 +78,54 @@ def convert_datetime(filename):
             dhuhr = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Ogle"], '%d.%m.%Y%H:%M')
             isha = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Yatsi"], '%d.%m.%Y%H:%M')
 
+        if ptime["MiladiTarihKisa"] == next_date.strftime('%d.%m.%Y'):
+            fajr_next = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Imsak"], '%d.%m.%Y%H:%M')
+            # TODO: The statements below could be shortened.
             if present_time < fajr:
-                print("Fajr:", datetime.datetime.strftime(fajr, '%H:%M'))
-                print("Remaining time until fajr:", fajr - present_time)
+                remtime = str(fajr - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
             elif present_time < sunrise:
-                print("Sunrise:", datetime.datetime.strftime(sunrise, '%H:%M'))
-                print("Remaining time until sunrise:", sunrise - present_time)
+                remtime = str(sunrise - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
             elif present_time < dhuhr:
-                print("Dhuhr:", datetime.datetime.strftime(dhuhr, '%H:%M'))
-                print("Remaining time until dhuhr:", dhuhr - present_time)
+                remtime = str(dhuhr - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
             elif present_time < asr:
-                print("Asr:", datetime.datetime.strftime(asr, '%H:%M'))
-                print("Remaining time until asr:", asr - present_time)
+                remtime = str(asr - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
             elif present_time < maghrib:
-                print("Maghrib:", datetime.datetime.strftime(maghrib, '%H:%M'))
-                print("Remaining time until maghrib:", maghrib - present_time)
+                remtime = str(maghrib - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
             elif present_time < isha:
-                print("Isha:", datetime.datetime.strftime(isha, '%H:%M'))
-                print("Remaining time until isha:", isha - present_time)
-            else:
-                print("no")
+                remtime = str(isha - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
+            elif present_time < fajr_next:
+                remtime = str(fajr_next - present_time)
+                remtime = ':'.join(remtime.split(':')[0:2])
+                print(remtime)
+
+            print('\n' '---' + '\n')
+            print( 'Fajr:\t', datetime.datetime.strftime(fajr, '%H:%M'), '| font = Menlo size = 12' + '\n')
+            print( 'Sunrise:\t', datetime.datetime.strftime(sunrise, '%H:%M'), '| font = Menlo size = 12' + '\n')
+            print( 'Dhuhr:\t', datetime.datetime.strftime(dhuhr, '%H:%M'), '| font = Menlo size = 12' + '\n')
+            print( 'Asr:\t', datetime.datetime.strftime(asr, '%H:%M'), '| font = Menlo size = 12' + '\n')
+            print( 'Maghrib:\t', datetime.datetime.strftime(maghrib, '%H:%M'), '| font = Menlo size = 12' + '\n')
+            print( 'Isha:\t', datetime.datetime.strftime(isha, '%H:%M'), '| font = Menlo size = 12' + '\n')
             return
 
-    print("Cache is outdated. Updating...")
-    write_to_file(get_prayer_times())
-    convert_datetime('.ptimes.json')
+    # print("no")
+    # print(sunrise)
+
+    # errprint("Cache is outdated, updating...")
+    # write_to_file(get_prayer_times())
+    # convert_datetime('.ptimes.json')
 
 
 # write_to_file(get_prayer_times())
 convert_datetime('.ptimes.json')
-
