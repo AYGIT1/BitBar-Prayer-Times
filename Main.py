@@ -1,13 +1,10 @@
-import requests
-import json
 import datetime
+import json
 import sys
+import requests
 
 
-# TODO: MORE Exception handling!
-# TODO: Too many recurring lines, try to use loops.
-
-
+# For printing to stderr
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
@@ -70,6 +67,7 @@ def convert_datetime(filename):
                 rerun("Cache file corrupted, downloading file...")
     except FileNotFoundError:
         rerun("Cache file not found, downloading file...")
+        return 1
     present_time = datetime.datetime.now()
     present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
     for ptime in data:
@@ -94,15 +92,13 @@ def convert_datetime(filename):
                         remtime = str(ptime - present_time)
                         remtime = ':'.join(remtime.split(':')[0:2])
                         print(remtime)
-                        print('\n' '---' + '\n')
                         for pname in pnameslist:
                             print(pname + ':\t', datetime.datetime.strftime(ptime, '%H:%M'),
-                                  '| font = Menlo size = 12' + '\n')
+                                  '| font = Menlo size = 12')
                         return
         except KeyError:
             rerun("Unidentified JSON file, downloading file from server: https://ezanvakti.herokuapp.com  ...")
-        else:
-            rerun("Cache is outdated, updating...")
+    rerun("Cache is outdated, updating...")
 
 
 convert_datetime('.ptimes.json')
