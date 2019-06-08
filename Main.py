@@ -70,16 +70,16 @@ def convert_datetime(filename):
         return 1
     present_time = datetime.datetime.now()
     present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
-    for ptime in data:
+    for ptimes in data:
         try:
-            if ptime["MiladiTarihKisa"] == present_time.strftime('%d.%m.%Y'):
-                index_nextday = data.index(ptime) + 1
-                maghrib = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Aksam"], '%d.%m.%Y%H:%M')
-                sunrise = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Gunes"], '%d.%m.%Y%H:%M')
-                asr = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Ikindi"], '%d.%m.%Y%H:%M')
-                fajr = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Imsak"], '%d.%m.%Y%H:%M')
-                dhuhr = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Ogle"], '%d.%m.%Y%H:%M')
-                isha = datetime.datetime.strptime(ptime["MiladiTarihKisa"] + ptime["Yatsi"], '%d.%m.%Y%H:%M')
+            if ptimes["MiladiTarihKisa"] == present_time.strftime('%d.%m.%Y'):
+                index_nextday = data.index(ptimes) + 1
+                maghrib = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Aksam"], '%d.%m.%Y%H:%M')
+                sunrise = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Gunes"], '%d.%m.%Y%H:%M')
+                asr = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Ikindi"], '%d.%m.%Y%H:%M')
+                fajr = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Imsak"], '%d.%m.%Y%H:%M')
+                dhuhr = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Ogle"], '%d.%m.%Y%H:%M')
+                isha = datetime.datetime.strptime(ptimes["MiladiTarihKisa"] + ptimes["Yatsi"], '%d.%m.%Y%H:%M')
                 try:
                     fajr_next = datetime.datetime.strptime(
                         data[index_nextday]["MiladiTarihKisa"] + data[index_nextday]["Imsak"], '%d.%m.%Y%H:%M')
@@ -92,10 +92,11 @@ def convert_datetime(filename):
                         remtime = str(ptime - present_time)
                         remtime = ':'.join(remtime.split(':')[0:2])
                         print(remtime)
-                        for pname in pnameslist:
-                            print(pname + ':\t', datetime.datetime.strftime(ptime, '%H:%M'),
-                                  '| font = Menlo size = 12')
-                        return
+                        break
+                for ptime, pname in zip(ptimeslist, pnameslist):
+                    print(pname + ':\t', datetime.datetime.strftime(ptime, '%H:%M'),
+                          '| font = Menlo size = 12')
+                return
         except KeyError:
             rerun("Unidentified JSON file, downloading file from server: https://ezanvakti.herokuapp.com  ...")
     rerun("Cache is outdated, updating...")
