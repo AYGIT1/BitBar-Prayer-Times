@@ -118,8 +118,15 @@ def convert_datetime(filename):
 
                 for ptime in ptimeslist:
                     if present_time < ptime:
+                        if (ptime - present_time) < datetime.timedelta(minutes=16):
+                            remtime = str(ptime - present_time)
+                            remtime = ":".join(remtime.split(":")[0:2])
+                            print(remtime, "| color=red\n---")
+                            break
                         remtime = str(ptime - present_time)
                         remtime = ":".join(remtime.split(":")[0:2])
+                        if len(remtime) < 5:
+                            remtime = "0" + remtime
                         print(remtime, "\n---")
                         break
 
