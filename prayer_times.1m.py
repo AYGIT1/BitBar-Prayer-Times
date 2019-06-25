@@ -124,7 +124,7 @@ def convert_datetime(filename):
                         if (ptime - present_time) < datetime.timedelta(minutes=16):
                             remtime = str(ptime - present_time)
                             remtime = ":".join(remtime.split(":")[0:2])
-                            print(remtime, "| color=red\n---")
+                            print("0" + remtime, "| color=red\n---")
                             break
                         remtime = str(ptime - present_time)
                         remtime = ":".join(remtime.split(":")[0:2])
