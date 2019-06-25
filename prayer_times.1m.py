@@ -116,10 +116,7 @@ def convert_datetime(filename):
                 pnameslist = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"]
                 max_name_length = len(max(pnameslist))
 
-                counter_a = 0
-                counter_b = 1
                 for ptime in ptimeslist:
-                    counter_a += 1
                     if present_time < ptime:
                         if (ptime - present_time) < datetime.timedelta(minutes=16):
                             remtime = str(ptime - present_time)
@@ -132,15 +129,11 @@ def convert_datetime(filename):
                             remtime = "0" + remtime
                         print(remtime, "\n---")
                         break
+
                 for ptime, pname in zip(ptimeslist, pnameslist):
-                    counter_b += 1
                     padding = max_name_length - len(pname)
-                    if counter_a == counter_b :
-                        print(pname + padding * " " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
-                              "| color = green font = Menlo size = 12")
-                    else:
-                        print(pname + padding*" " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
-                              "| font = Menlo size = 12")
+                    print(pname + padding*" " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
+                          "| font = Menlo size = 12")
                 return
         except KeyError:
             rerun("Unidentified JSON file, downloading file from server: https://ezanvakti.herokuapp.com  ...")
