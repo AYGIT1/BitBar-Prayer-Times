@@ -63,6 +63,10 @@ def get_prayer_times():
 
         raise SystemExit(0)
 
+# This is a branching attempt
+# TODO: Basically request the name of the places in order, assign them to a nested dict, convert to json and cache in a file
+# Countries would be already cached, when a country selected for the first time, a bash script has to be ran to request
+# and cache the provinces, then same thing for districts.
 
 # Dump JSON formatted data to file
 def write_to_file(data):
