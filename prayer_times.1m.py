@@ -20,63 +20,87 @@ sys.stderr = open(os.devnull, "w")
 # Get script fullpath
 SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 
+# Get location names from bash
+# sys.argv[1], sys.argv[2], sys.argv[3] = country, district, province
+
 # For printing to stderr
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-def get_prayer_times():
-    country = "TURKEY"  # Ülke
-    province = "ANKARA"  # Şehir
-    district = "ANKARA"  # İlçe
+# TODO: Basically request the name of the places in order, assign them to a nested dict, convert to json and cache in a file
+# Countries would be already cached, when a country selected for the first time, a bash script has to be ran to request
+# and cache the provinces, then same thing for districts.
+
+
+def location_select(filename):
+    country, province, district = ("",)*3
     url = "https://ezanvakti.herokuapp.com"
 
-    countries, provinces, districts, prayer = ("",)*4
+    # Create location cache file for first run
+    location_dict = []
     try:
-        # Find country ID
-        countries = requests.get(url + "/ulkeler")
-        for data_country in countries.json():
-            if data_country["UlkeAdiEn"] == country.upper():
-                country_id = data_country["UlkeID"]
+        with open(filename, mode="r", encoding="utf-8") as json_file:
+            location_dict = json.loads(json_file.read())
+    except json.decoder.JSONDecodeError:
+        errprint("Cache file corrupted, select location")
+    except FileNotFoundError:
+        write_to_file(location_dict, ".location.json")
+        print("Please select location")
+        # when clicked on "Select location"
+        try:
+            # Select country
+            location_dict = requests.get(url + "/ulkeler")
+            for data_country in location_dict.json():
+                print(data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
 
-        # Find province ID
-        provinces = requests.get(url + f"/sehirler?ulke={country_id}")
-        for data_province in provinces.json():
-            if data_province["SehirAdiEn"] == province.upper():
-                province_id = data_province["SehirID"]
+            # Select province
+            provinces = requests.get(url + f"/sehirler?ulke={country_id}")
+            for data_province in provinces.json():
+                if data_province["SehirAdiEn"] == province.upper():
+                    province_id = data_province["SehirID"]
 
-        # Find district ID
-        districts = requests.get(url + f"/ilceler?sehir={province_id}")
-        for data_district in districts.json():
-            if data_district["IlceAdiEn"] == district.upper():
-                district_id = data_district["IlceID"]
+            # Select district
+            districts = requests.get(url + f"/ilceler?sehir={province_id}")
+            for data_district in districts.json():
+                if data_district["IlceAdiEn"] == district.upper():
+                    district_id = data_district["IlceID"]
 
-        # Get prayer times for the district
+
+        except:
+            if "<Response [429]>" in {str(location_dict)}:
+                errprint("HTTP error 429 (Too Many Requests)")
+            else:
+                errprint("No network")
+
+            raise SystemExit(0)
+
+
+def get_prayer_times(district_id):
+
+    try:
         prayer = requests.get(url + f"/vakitler?ilce={district_id}")
         return prayer.json()
 
     except:
-        if "<Response [429]>" in {str(countries), str(provinces), str(districts), str(prayer)}:
+        if "<Response [429]>" in {str(prayer)}:
             errprint("HTTP error 429 (Too Many Requests)")
         else:
             errprint("No network")
 
         raise SystemExit(0)
 
-# This is a branching attempt
-# TODO: Basically request the name of the places in order, assign them to a nested dict, convert to json and cache in a file
-# Countries would be already cached, when a country selected for the first time, a bash script has to be ran to request
-# and cache the provinces, then same thing for districts.
+
 
 # Dump JSON formatted data to file
-def write_to_file(data):
-    with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
+def write_to_file(data, filename):
+    with open(f"{SCRIPT_PATH}{filename}", "w") as json_file:
         json.dump(data, json_file)
 
 
 def rerun(error_text):
     errprint(error_text)
-    write_to_file(get_prayer_times())
+    write_to_file(get_prayer_times(location_select(".location.json")), ".ptimes.json")
     convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
 
 
