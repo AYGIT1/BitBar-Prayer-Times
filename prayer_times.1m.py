@@ -43,37 +43,53 @@ def location_select(filename):
         with open(filename, mode="r", encoding="utf-8") as json_file:
             location_dict = json.loads(json_file.read())
     except json.decoder.JSONDecodeError:
-        errprint("Cache file corrupted, select location")
+        write_to_file(location_dict, ".location.json")
+        print("Please select location")
     except FileNotFoundError:
         write_to_file(location_dict, ".location.json")
         print("Please select location")
-        # when clicked on "Select location"
-        try:
-            # Select country
+        location_select(".location.json")
+    try:
+        # Select country
+        if location_dict is None:
             location_dict = requests.get(url + "/ulkeler")
+            write_to_file(location_dict, ".location.json")
             for data_country in location_dict.json():
                 print(data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
+        else:
+            for data_country in location_dict:
+                print("--" + data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
 
-            # Select province
-            provinces = requests.get(url + f"/sehirler?ulke={country_id}")
-            for data_province in provinces.json():
-                if data_province["SehirAdiEn"] == province.upper():
-                    province_id = data_province["SehirID"]
-
-            # Select district
-            districts = requests.get(url + f"/ilceler?sehir={province_id}")
-            for data_district in districts.json():
-                if data_district["IlceAdiEn"] == district.upper():
-                    district_id = data_district["IlceID"]
+        if location_dict["Provinces"] is None:
+            location_dict = requests.get(url + "/ulkeler")
+            write_to_file(location_dict, ".location.json")
+            for data_country in location_dict.json():
+                print(data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
+        else:
+            for data_country in location_dict:
+                print("--" + data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
 
 
-        except:
-            if "<Response [429]>" in {str(location_dict)}:
-                errprint("HTTP error 429 (Too Many Requests)")
-            else:
-                errprint("No network")
+        # Select province
+        provinces = requests.get(url + f"/sehirler?ulke={country_id}")
+        for data_province in provinces.json():
+            if data_province["SehirAdiEn"] == province.upper():
+                province_id = data_province["SehirID"]
 
-            raise SystemExit(0)
+        # Select district
+        districts = requests.get(url + f"/ilceler?sehir={province_id}")
+        for data_district in districts.json():
+            if data_district["IlceAdiEn"] == district.upper():
+                district_id = data_district["IlceID"]
+
+    except:
+        if "<Response [429]>" in {str(location_dict)}:
+            errprint("HTTP error 429 (Too Many Requests)")
+            print("Try again after 15 minutes")
+        else:
+            errprint("No network")
+
+        raise SystemExit(0)
 
 
 def get_prayer_times(district_id):
@@ -89,7 +105,6 @@ def get_prayer_times(district_id):
             errprint("No network")
 
         raise SystemExit(0)
-
 
 
 # Dump JSON formatted data to file
@@ -114,7 +129,7 @@ def convert_datetime(filename):
     except json.decoder.JSONDecodeError:
         rerun("Cache file corrupted, downloading file...")
     except FileNotFoundError:
-        rerun("Cache file not found, downloading file...")
+        rerun("Cache file not found.")
         return
     
     present_time = datetime.datetime.now()
