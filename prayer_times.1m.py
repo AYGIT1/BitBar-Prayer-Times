@@ -34,7 +34,6 @@ def errprint(*args, **kwargs):
 
 
 def location_select(filename):
-    country, province, district = ("",)*3
     url = "https://ezanvakti.herokuapp.com"
 
     # Create location cache file for first run
@@ -42,29 +41,25 @@ def location_select(filename):
     try:
         with open(filename, mode="r", encoding="utf-8") as json_file:
             location_dict = json.loads(json_file.read())
-    except json.decoder.JSONDecodeError:
-        write_to_file(location_dict, ".location.json")
-        print("Please select location")
-    except FileNotFoundError:
-        write_to_file(location_dict, ".location.json")
-        print("Please select location")
+    except (json.decoder.JSONDecodeError, FileNotFoundError):
+        print("Please select location" + "---" + "Select Location")
+        countries = requests.get(url + "/ulkeler")
+        write_to_file(countries.json, ".location.json")
         location_select(".location.json")
+
+    print("Select Location" + f"| bash={SCRIPT_PATH}")
+    for data_country in location_dict:
+        print("--" + data_country["UlkeAdiEn"] + f"| bash={__file__} refresh=true")
+
+
+
     try:
         # Select country
-        if location_dict is None:
+        if not location_dict:
             location_dict = requests.get(url + "/ulkeler")
             write_to_file(location_dict, ".location.json")
             for data_country in location_dict.json():
-                print(data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
-        else:
-            for data_country in location_dict:
-                print("--" + data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
-
-        if location_dict["Provinces"] is None:
-            location_dict = requests.get(url + "/ulkeler")
-            write_to_file(location_dict, ".location.json")
-            for data_country in location_dict.json():
-                print(data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
+                print(data_country["UlkeAdiEn"] + f"| bash={SCRIPT_PATH} {yer adı}")
         else:
             for data_country in location_dict:
                 print("--" + data_country["UlkeAdiEn"] + "| href=" + some_bash_script)
@@ -190,4 +185,10 @@ def convert_datetime(filename):
     rerun("Cache is outdated, updating...")
 
 
-convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+try:
+    sys.argv[1] = COUNTRY
+    # sys.argv[2] = PROVINCE
+    # sys.argv[3] = DISTRICT
+
+except IndexError:
+    convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
