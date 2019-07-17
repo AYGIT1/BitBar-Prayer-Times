@@ -13,9 +13,18 @@ import json
 import sys
 import requests
 import os
+import argparse
 
 # Redirect stderr to null by default
-sys.stderr = open(os.devnull, "w")
+# sys.stderr = open(os.devnull, "w")
+
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-l", "--location", type=int, default=0,
+        help="District ID")
+
+args = parser.parse_args()
 
 # Get script fullpath
 SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
@@ -26,6 +35,24 @@ def errprint(*args, **kwargs):
 
 
 def get_prayer_times():
+    
+    if args.location == 0:
+        pass
+    else:
+        print() # Delete this line
+
+        # Check whether prayer times of args.location (which merely is a DistrictID) is contained 
+        # (cached) in .ptimes.json file. If not request for it from https://ezanvakti.herokuapp.com . 
+        # At the end, toggle "current"
+
+
+    # Read .ptimes.json and find the location which "current" flag is set to true and go on with that one. 
+    # If there is no prayer times which "current" is set true, then select and mark first one as default (current:true). 
+    # If there is no prayer times in .ptimes.json (i.e. it is empty or corrupted), request prayer times for Ankara as default.
+    
+    # All the above comments mean that .ptimes.json data structure needs to be changed a little bit. 
+    # (e.g. we need "current" flag)
+
     country = "TURKEY"  # Ülke
     province = "ANKARA"  # Şehir
     district = "ANKARA"  # İlçe
@@ -148,3 +175,25 @@ def convert_datetime(filename):
 
 
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+
+
+
+print("---")
+print("Locations")
+print("-- Select Country")
+all_places = {}
+with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
+    all_places = json.loads(json_file.read())
+# if args.country == 0:
+for country in all_places:
+    # print(f"-- {country['UlkeAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -c {country['UlkeID']}' terminal=false refresh=true")
+    print(f"-- {country['UlkeAdiEn']}")
+    for province in country['province']:
+        print(f"---- {province['SehirAdiEn']}")
+        for district in province['district']:
+            print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
+# else:
+#     for country in all_places:
+#         if(str(args.country) == str(country['UlkeID'])):
+#             for province in country["province"]:
+#                 print(f"-- {province['SehirAdiEn']}")
