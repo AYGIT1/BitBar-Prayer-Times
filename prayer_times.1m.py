@@ -24,6 +24,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--location", type=int, default=0,
         help="District ID")
 
+# TODO: Add location name to argparser
+# TODO: Cache multiple locations.
+
 args = parser.parse_args()
 
 # Get script fullpath
@@ -33,13 +36,52 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
-
+# Get 30-day prayer times for the given location data
 def get_prayer_times():
-    
-    if args.location == 0:
-        pass
-    else:
-        print() # Delete this line
+
+    # Default location
+    country = "TURKEY"  # Ülke
+    province = "ANKARA"  # Şehir
+    district = "ANKARA"  # İlçe
+    url = "https://ezanvakti.herokuapp.com"
+    countries, provinces, districts, prayer = ("",)*4
+
+
+    location = {31: {"District_Name": "val", "District_ID": "val"}}
+
+
+    try:
+        # If no argument given, run according to district id cached in ptimes.json (if exists)
+        if args.location == 0:
+            with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
+                data = json.loads(json_file.read())
+                district_id = data[31]["District_ID"]
+        else:
+            district_id = args.location
+            prayer = requests.get(url + f"/vakitler?ilce={district_id}")
+            prayer[31] = {"District_Name": "ANKARA", "District_ID": district_id }
+            return prayer.json()
+        # Dictionary key '31' hardcoded as the json file holds only 30, ugly but works.
+
+    except (json.decoder.JSONDecodeError,  FileNotFoundError) as error:
+        # File not found, run with default location and set current location as ANKARA, ID: 9206
+        prayer = requests.get(url + f"/vakitler?ilce=9206")
+        prayer[31] = {"District_Name": "ANKARA", "District_ID": "9206"}
+        return prayer.json()
+
+    except (NameError, KeyError) as error:
+        # No location specified, run with default location and set current location as ANKARA, ID: 9206
+        prayer = requests.get(url + f"/vakitler?ilce=9206")
+        prayer[31] = {"District_Name": "ANKARA", "District_ID": "9206"}
+        return prayer.json()
+
+    except:
+        if "<Response [429]>" in str(prayer):
+            errprint("HTTP error 429 (Too Many Requests)")
+        else:
+            errprint("No network")
+            raise SystemExit(0)
+
 
         # Check whether prayer times of args.location (which merely is a DistrictID) is contained 
         # (cached) in .ptimes.json file. If not request for it from https://ezanvakti.herokuapp.com . 
@@ -53,59 +95,17 @@ def get_prayer_times():
     # All the above comments mean that .ptimes.json data structure needs to be changed a little bit. 
     # (e.g. we need "current" flag)
 
-    country = "TURKEY"  # Ülke
-    province = "ANKARA"  # Şehir
-    district = "ANKARA"  # İlçe
-    url = "https://ezanvakti.herokuapp.com"
-
-    countries, provinces, districts, prayer = ("",)*4
-    try:
-        # Find country ID
-        countries = requests.get(url + "/ulkeler")
-        for data_country in countries.json():
-            if data_country["UlkeAdiEn"] == country.upper():
-                country_id = data_country["UlkeID"]
-
-        # Find province ID
-        provinces = requests.get(url + f"/sehirler?ulke={country_id}")
-        for data_province in provinces.json():
-            if data_province["SehirAdiEn"] == province.upper():
-                province_id = data_province["SehirID"]
-
-        # Find district ID
-        districts = requests.get(url + f"/ilceler?sehir={province_id}")
-        for data_district in districts.json():
-            if data_district["IlceAdiEn"] == district.upper():
-                district_id = data_district["IlceID"]
-
-        # Get prayer times for the district
-        prayer = requests.get(url + f"/vakitler?ilce={district_id}")
-        return prayer.json()
-
-    except:
-        if "<Response [429]>" in {str(countries), str(provinces), str(districts), str(prayer)}:
-            errprint("HTTP error 429 (Too Many Requests)")
-        else:
-            errprint("No network")
-
-        raise SystemExit(0)
-
-# This is a branching attempt
-# TODO: Basically request the name of the places in order, assign them to a nested dict, convert to json and cache in a file
-# Countries would be already cached, when a country selected for the first time, a bash script has to be ran to request
-# and cache the provinces, then same thing for districts.
 
 # Dump JSON formatted data to file
 def write_to_file(data):
     with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
         json.dump(data, json_file)
 
-
+# Run the script with given error text
 def rerun(error_text):
     errprint(error_text)
     write_to_file(get_prayer_times())
     convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
-
 
 # Convert JSON formatted file to datetime object
 def convert_datetime(filename):
@@ -119,7 +119,6 @@ def convert_datetime(filename):
     except FileNotFoundError:
         rerun("Cache file not found, downloading file...")
         return
-    
     present_time = datetime.datetime.now()
     present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
 
@@ -181,21 +180,20 @@ def convert_datetime(filename):
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
 
 
-
-print("---")
-print("Locations")
-print("-- Select Country")
-all_places = {}
-with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
-    all_places = json.loads(json_file.read())
-# if args.country == 0:
-for country in all_places:
-    # print(f"-- {country['UlkeAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -c {country['UlkeID']}' terminal=false refresh=true")
-    print(f"-- {country['UlkeAdiEn']}")
-    for province in country['province']:
-        print(f"---- {province['SehirAdiEn']}")
-        for district in province['district']:
-            print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
+# print("---")
+# print("Locations")
+# print("-- Select Country")
+# all_places = {}
+# with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
+#     all_places = json.loads(json_file.read())
+# # if args.country == 0:
+# for country in all_places:
+#     # print(f"-- {country['UlkeAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -c {country['UlkeID']}' terminal=false refresh=true")
+#     print(f"-- {country['UlkeAdiEn']}")
+#     for province in country['province']:
+#         print(f"---- {province['SehirAdiEn']}")
+#         for district in province['district']:
+#             print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
 # else:
 #     for country in all_places:
 #         if(str(args.country) == str(country['UlkeID'])):
