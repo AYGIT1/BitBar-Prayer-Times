@@ -24,9 +24,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-l", "--location", type=int, default=0,
         help="District ID")
 
-# TODO: Add location name to argparser
-# TODO: Cache multiple locations.
-
 args = parser.parse_args()
 
 # Get script fullpath
@@ -36,76 +33,83 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
-# Get 30-day prayer times for the given location data
+
+# Get prayer times of the selected location
 def get_prayer_times():
 
-    # Default location
-    country = "TURKEY"  # Ülke
-    province = "ANKARA"  # Şehir
-    district = "ANKARA"  # İlçe
+    # Default location: ANKARA / TURKEY
+    default_id = 9206
     url = "https://ezanvakti.herokuapp.com"
-    countries, provinces, districts, prayer = ("",)*4
+    prayer = ""
 
-
-    location = {31: {"District_Name": "val", "District_ID": "val"}}
-
+    data = []
+    ptimes = []
+    new_location = {"location_id": -1, "ptimes": "nothing", "current": False}
 
     try:
-        # If no argument given, run according to district id cached in ptimes.json (if exists)
-        if args.location == 0:
-            with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
-                data = json.loads(json_file.read())
-                district_id = data[31]["District_ID"]
-        else:
-            district_id = args.location
-            prayer = requests.get(url + f"/vakitler?ilce={district_id}")
-            prayer[31] = {"District_Name": "ANKARA", "District_ID": district_id }
-            return prayer.json()
-        # Dictionary key '31' hardcoded as the json file holds only 30, ugly but works.
+        with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
+            data = json.loads(json_file.read())
+            if args.location == 0:
+                for locations in data:
+                    print (type(locations))
+                    print (locations["current"])
+                    if locations["current"]:
+                        ptimes = locations["ptimes"]
+                        break
+            else:
+                for locations in data:
+                    if args.location == locations["location_id"]:
+                        ptimes = locations["ptimes"]
+                        break
+                try:
+                    prayer = requests.get(url + f"/vakitler?ilce={args.location}")
+                    # Write to file with JSON format.
+                    # with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
+                    #     json.dump(prayer.json(), json_file)
+                except:
+                    if "<Response [429]>" in {str(countries), str(provinces), str(districts), str(prayer)}:
+                        errprint("HTTP error 429 (Too Many Requests)")
+                    else:
+                        errprint("No network")
+                    raise SystemExit(0)
 
-    except (json.decoder.JSONDecodeError,  FileNotFoundError) as error:
-        # File not found, run with default location and set current location as ANKARA, ID: 9206
-        prayer = requests.get(url + f"/vakitler?ilce=9206")
-        prayer[31] = {"District_Name": "ANKARA", "District_ID": "9206"}
-        return prayer.json()
+    except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
+        # Create cache file and set default location.
+        prayer = requests.get(url + "/vakitler?ilce=" + str(default_id))
+        new_location["ptimes"] = prayer.json()
+        new_location["location_id"] = 9206
+        new_location["current"] = True
+        data.append(new_location)
+        # Write to file with JSON format.
+        with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
+            json.dump(data, json_file)
+        rerun("Creating cache file...")
 
-    except (NameError, KeyError) as error:
-        # No location specified, run with default location and set current location as ANKARA, ID: 9206
-        prayer = requests.get(url + f"/vakitler?ilce=9206")
-        prayer[31] = {"District_Name": "ANKARA", "District_ID": "9206"}
-        return prayer.json()
+    new_location["location_id"] = args.location
+    new_location["ptimes"] = ptimes
 
-    except:
-        if "<Response [429]>" in str(prayer):
-            errprint("HTTP error 429 (Too Many Requests)")
-        else:
-            errprint("No network")
-            raise SystemExit(0)
+    try:
+        with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
+            data = json.loads(json_file.read())
+    except json.decoder.JSONDecodeError:
+        rerun("Cache file corrupted, downloading file...")
+    except FileNotFoundError:
+        rerun("Cache file not found, downloading file...")
+        return
 
+    data.append(new_location)
 
-        # Check whether prayer times of args.location (which merely is a DistrictID) is contained 
-        # (cached) in .ptimes.json file. If not request for it from https://ezanvakti.herokuapp.com . 
-        # At the end, toggle "current"
-
-
-    # Read .ptimes.json and find the location which "current" flag is set to true and go on with that one. 
-    # If there is no prayer times which "current" is set true, then select and mark first one as default (current:true). 
-    # If there is no prayer times in .ptimes.json (i.e. it is empty or corrupted), request prayer times for Ankara as default.
-    
-    # All the above comments mean that .ptimes.json data structure needs to be changed a little bit. 
-    # (e.g. we need "current" flag)
-
-
-# Dump JSON formatted data to file
-def write_to_file(data):
+    # Write to file with JSON format.
     with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
         json.dump(data, json_file)
 
-# Run the script with given error text
+
+# Run the python script in case of error.
 def rerun(error_text):
     errprint(error_text)
-    write_to_file(get_prayer_times())
+    get_prayer_times()
     convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+
 
 # Convert JSON formatted file to datetime object
 def convert_datetime(filename):
@@ -119,6 +123,7 @@ def convert_datetime(filename):
     except FileNotFoundError:
         rerun("Cache file not found, downloading file...")
         return
+    print (type(data))
     present_time = datetime.datetime.now()
     present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
 
@@ -173,29 +178,28 @@ def convert_datetime(filename):
                               "| font = Menlo size = 12")
                 return
         except KeyError:
+            TODO: fix
             rerun("Unidentified JSON file, downloading file from server: https://ezanvakti.herokuapp.com  ...")
     rerun("Cache is outdated, updating...")
 
 
+# Print selectable locations for bitbar plugin
+def print_location():
+    print("---")
+    print("Locations")
+    print("-- Select Country")
+    with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
+        all_places = json.loads(json_file.read())
+    for country in all_places:
+        print(f"-- {country['UlkeAdiEn']}")
+        for province in country['province']:
+            print(f"---- {province['SehirAdiEn']}")
+            for district in province['district']:
+                print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
+
+
+get_prayer_times()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+# print_location()
 
 
-# print("---")
-# print("Locations")
-# print("-- Select Country")
-# all_places = {}
-# with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
-#     all_places = json.loads(json_file.read())
-# # if args.country == 0:
-# for country in all_places:
-#     # print(f"-- {country['UlkeAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -c {country['UlkeID']}' terminal=false refresh=true")
-#     print(f"-- {country['UlkeAdiEn']}")
-#     for province in country['province']:
-#         print(f"---- {province['SehirAdiEn']}")
-#         for district in province['district']:
-#             print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
-# else:
-#     for country in all_places:
-#         if(str(args.country) == str(country['UlkeID'])):
-#             for province in country["province"]:
-#                 print(f"-- {province['SehirAdiEn']}")
