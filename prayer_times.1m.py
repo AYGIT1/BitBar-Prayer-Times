@@ -29,86 +29,71 @@ args = parser.parse_args()
 # Get script fullpath
 SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 
+# TODO: Add "location name" key to ptimes.json file
+# Default location: ANKARA / TURKEY
+default_id = 9206
+
 # For printing to stderr
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
-# Get prayer times of the selected location
-def get_prayer_times():
-
-    # Default location: ANKARA / TURKEY
-    default_id = 9206
+# Updates prayer times for given id and reformats ptimes.json file
+def update_and_format(data, location_id):
     url = "https://ezanvakti.herokuapp.com"
     prayer = ""
-
-    data = []
-    ptimes = []
     new_location = {"location_id": -1, "ptimes": "nothing", "current": False}
-
     try:
-        with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
-            data = json.loads(json_file.read())
-            if args.location == 0:
-                for locations in data:
-                    print (type(locations))
-                    print (locations["current"])
-                    if locations["current"]:
-                        ptimes = locations["ptimes"]
-                        break
-            else:
-                for locations in data:
-                    if args.location == locations["location_id"]:
-                        ptimes = locations["ptimes"]
-                        break
-                try:
-                    prayer = requests.get(url + f"/vakitler?ilce={args.location}")
-                    # Write to file with JSON format.
-                    # with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
-                    #     json.dump(prayer.json(), json_file)
-                except:
-                    if "<Response [429]>" in {str(countries), str(provinces), str(districts), str(prayer)}:
-                        errprint("HTTP error 429 (Too Many Requests)")
-                    else:
-                        errprint("No network")
-                    raise SystemExit(0)
-
-    except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
-        # Create cache file and set default location.
-        prayer = requests.get(url + "/vakitler?ilce=" + str(default_id))
+        prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
         new_location["ptimes"] = prayer.json()
-        new_location["location_id"] = 9206
+        new_location["location_id"] = location_id
         new_location["current"] = True
         data.append(new_location)
         # Write to file with JSON format.
         with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
             json.dump(data, json_file)
-        rerun("Creating cache file...")
+    except:
+        if "<Response [429]>" in str(prayer):
+            errprint("HTTP error 429 (Too Many Requests)")
+        else:
+            errprint("No network")
+        raise SystemExit(0)
+    return
 
-    new_location["location_id"] = args.location
-    new_location["ptimes"] = ptimes
+
+# Get prayer times of the selected location
+def get_prayer_times():
 
     try:
         with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
             data = json.loads(json_file.read())
-    except json.decoder.JSONDecodeError:
-        rerun("Cache file corrupted, downloading file...")
-    except FileNotFoundError:
-        rerun("Cache file not found, downloading file...")
-        return
+            if args.location == 0:
+                return
+            else:
+                for locations in data:
+                    if args.location == locations["location_id"]:
+                        locations["current"] = True
+                    else:
+                        locations["current"] = False
+                for locations in data:
+                    if locations["current"]:
+                        return
+                update_and_format(data, args.location)
+                return
 
-    data.append(new_location)
-
-    # Write to file with JSON format.
-    with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
-        json.dump(data, json_file)
-
+    except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
+        # Create cache file and set default location.
+        data = []
+        update_and_format(data, default_id)
+        # rerun("Creating cache file...")
+    return
 
 # Run the python script in case of error.
 def rerun(error_text):
     errprint(error_text)
     get_prayer_times()
     convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+    return
 
 
 # Convert JSON formatted file to datetime object
@@ -118,70 +103,79 @@ def convert_datetime(filename):
     try:
         with open(filename, mode="r", encoding="utf-8") as json_file:
             data = json.loads(json_file.read())
-    except json.decoder.JSONDecodeError:
-        rerun("Cache file corrupted, downloading file...")
-    except FileNotFoundError:
-        rerun("Cache file not found, downloading file...")
+    except (json.decoder.JSONDecodeError, FileNotFoundError) as error:
+        rerun("Creating cache file...")
         return
-    print (type(data))
+
     present_time = datetime.datetime.now()
     present_time = present_time - datetime.timedelta(microseconds=present_time.microsecond)
 
-    for ptimes in data:
-        try:
-            gregorian_date = ptimes["MiladiTarihKisa"]
-            if gregorian_date == present_time.strftime("%d.%m.%Y"):
-                index_nextday = data.index(ptimes) + 1
-                date_format = "%d.%m.%Y%H:%M"
-                
-                maghrib = datetime.datetime.strptime(gregorian_date + ptimes["Aksam"],  date_format)
-                sunrise = datetime.datetime.strptime(gregorian_date + ptimes["Gunes"],  date_format)
-                asr     = datetime.datetime.strptime(gregorian_date + ptimes["Ikindi"], date_format)
-                fajr    = datetime.datetime.strptime(gregorian_date + ptimes["Imsak"],  date_format)
-                dhuhr   = datetime.datetime.strptime(gregorian_date + ptimes["Ogle"],   date_format)
-                isha    = datetime.datetime.strptime(gregorian_date + ptimes["Yatsi"],  date_format)
+    for flag in data:
+        if flag["current"]:
+            for ptimes in flag["ptimes"]:
+                gregorian_date = ptimes["MiladiTarihKisa"]
+                if gregorian_date == present_time.strftime("%d.%m.%Y"):
+                    index_nextday = flag["ptimes"].index(ptimes) + 1
+                    date_format = "%d.%m.%Y%H:%M"
 
-                try:
-                    fajr_next = datetime.datetime.strptime(
-                        data[index_nextday]["MiladiTarihKisa"] + data[index_nextday]["Imsak"], date_format)
-                except IndexError:
-                    rerun("Cache is outdated, updating...")
+                    maghrib = datetime.datetime.strptime(gregorian_date + ptimes["Aksam"],  date_format)
+                    sunrise = datetime.datetime.strptime(gregorian_date + ptimes["Gunes"],  date_format)
+                    asr     = datetime.datetime.strptime(gregorian_date + ptimes["Ikindi"], date_format)
+                    fajr    = datetime.datetime.strptime(gregorian_date + ptimes["Imsak"],  date_format)
+                    dhuhr   = datetime.datetime.strptime(gregorian_date + ptimes["Ogle"],   date_format)
+                    isha    = datetime.datetime.strptime(gregorian_date + ptimes["Yatsi"],  date_format)
 
-                ptimeslist = [fajr, sunrise, dhuhr, asr, maghrib, isha, fajr_next]
-                pnameslist = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"]
-                max_name_length = len(max(pnameslist))
+                    try:
+                        fajr_next = datetime.datetime.strptime(
+                            flag["ptimes"][index_nextday]["MiladiTarihKisa"] + flag["ptimes"][index_nextday]["Imsak"], date_format)
+                    except IndexError:
+                        rerun("Cache is outdated, updating...")
+                        return
 
-                counter_a = 0
-                counter_b = 1
-                for ptime in ptimeslist:
-                    counter_a += 1
-                    if present_time < ptime:
-                        if (ptime - present_time) < datetime.timedelta(minutes=16):
+                    ptimeslist = [fajr, sunrise, dhuhr, asr, maghrib, isha, fajr_next]
+                    pnameslist = ["Fajr", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha"]
+                    max_name_length = len(max(pnameslist))
+
+                    counter_a = 0
+                    counter_b = 1
+                    for ptime in ptimeslist:
+                        counter_a += 1
+                        if present_time < ptime:
+                            if (ptime - present_time) < datetime.timedelta(minutes=16):
+                                remtime = str(ptime - present_time)
+                                remtime = ":".join(remtime.split(":")[0:2])
+                                print("0" + remtime, "| color=red\n---")
+                                break
                             remtime = str(ptime - present_time)
                             remtime = ":".join(remtime.split(":")[0:2])
-                            print("0" + remtime, "| color=red\n---")
+                            if len(remtime) < 5:
+                                remtime = "0" + remtime
+                            print(remtime, "\n---")
                             break
-                        remtime = str(ptime - present_time)
-                        remtime = ":".join(remtime.split(":")[0:2])
-                        if len(remtime) < 5:
-                            remtime = "0" + remtime
-                        print(remtime, "\n---")
-                        break
-                for ptime, pname in zip(ptimeslist, pnameslist):
-                    counter_b += 1
-                    padding = max_name_length - len(pname)
-                    if counter_a == counter_b :
-                        print(pname + padding * " " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
-                              "| color = green font = Menlo size = 12")
-                    else:
-                        print(pname + padding*" " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
-                              "| font = Menlo size = 12")
-                return
-        except KeyError:
-            TODO: fix
-            rerun("Unidentified JSON file, downloading file from server: https://ezanvakti.herokuapp.com  ...")
-    rerun("Cache is outdated, updating...")
-
+                    for ptime, pname in zip(ptimeslist, pnameslist):
+                        counter_b += 1
+                        padding = max_name_length - len(pname)
+                        if counter_a == counter_b :
+                            print(pname + padding * " " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
+                                  "| color = green font = Menlo size = 12")
+                        else:
+                            print(pname + padding*" " + "\t\t:", datetime.datetime.strftime(ptime, "%H:%M"),
+                                  "| font = Menlo size = 12")
+                    return
+            # Remove outdated entry from list
+            print ("Updating cache...")
+            new_data = []
+            for entries in data:
+                if entries != flag:
+                    new_data.append(entries)
+            update_and_format(new_data,flag["location_id"])
+            rerun("Update completed.")
+            return
+        # Run with default if no "current" flag set to true
+        data = []
+        update_and_format(data, default_id)
+        rerun("Flag error: all false. Recreating cache...")
+        return
 
 # Print selectable locations for bitbar plugin
 def print_location():
