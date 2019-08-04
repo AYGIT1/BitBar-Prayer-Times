@@ -33,6 +33,8 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 # Default location: ANKARA / TURKEY
 default_id = 9206
 
+args.location = 9009
+
 # For printing to stderr
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -43,6 +45,7 @@ def update_and_format(data, location_id):
     url = "https://ezanvakti.herokuapp.com"
     prayer = ""
     new_location = {"location_id": -1, "ptimes": "nothing", "current": False}
+    print (location_id)
     try:
         prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
         new_location["ptimes"] = prayer.json()
@@ -56,13 +59,14 @@ def update_and_format(data, location_id):
         if "<Response [429]>" in str(prayer):
             errprint("HTTP error 429 (Too Many Requests)")
         else:
-            errprint("No network")
+            errprint("No network or" + str(prayer))
+
         raise SystemExit(0)
     return
 
 
 # Get prayer times of the selected location
-def get_prayer_times():
+def check_cache():
 
     try:
         with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
@@ -85,13 +89,13 @@ def get_prayer_times():
         # Create cache file and set default location.
         data = []
         update_and_format(data, default_id)
-        # rerun("Creating cache file...")
     return
+
 
 # Run the python script in case of error.
 def rerun(error_text):
     errprint(error_text)
-    get_prayer_times()
+    check_cache()
     convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
     return
 
@@ -171,11 +175,12 @@ def convert_datetime(filename):
             update_and_format(new_data,flag["location_id"])
             rerun("Update completed.")
             return
-        # Run with default if no "current" flag set to true
-        data = []
-        update_and_format(data, default_id)
-        rerun("Flag error: all false. Recreating cache...")
-        return
+    # Run with default if no "current" flag set to true
+    data = []
+    update_and_format(data, default_id)
+    rerun("Flag error: all false. Recreating cache...")
+    return
+
 
 # Print selectable locations for bitbar plugin
 def print_location():
@@ -192,8 +197,8 @@ def print_location():
                 print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
 
 
-get_prayer_times()
+check_cache()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
-# print_location()
+print_location()
 
 
