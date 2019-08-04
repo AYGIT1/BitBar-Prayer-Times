@@ -33,8 +33,6 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 # Default location: ANKARA / TURKEY
 default_id = 9206
 
-args.location = 9009
-
 # For printing to stderr
 def errprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -45,7 +43,6 @@ def update_and_format(data, location_id):
     url = "https://ezanvakti.herokuapp.com"
     prayer = ""
     new_location = {"location_id": -1, "ptimes": "nothing", "current": False}
-    print (location_id)
     try:
         prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
         new_location["ptimes"] = prayer.json()
@@ -199,6 +196,6 @@ def print_location():
 
 check_cache()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
-print_location()
+# print_location()
 
 
