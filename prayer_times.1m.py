@@ -42,7 +42,7 @@ def errprint(*args, **kwargs):
 def update_and_format(data, location_id):
     url = "https://ezanvakti.herokuapp.com"
     prayer = ""
-    new_location = {"location_id": -1, "ptimes": "nothing", "current": False}
+    new_location = {}
     try:
         prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
         new_location["ptimes"] = prayer.json()
@@ -76,9 +76,6 @@ def check_cache():
                         locations["current"] = True
                     else:
                         locations["current"] = False
-                for locations in data:
-                    if locations["current"]:
-                        return
                 update_and_format(data, args.location)
                 return
 
@@ -191,11 +188,8 @@ def print_location():
         for province in country['province']:
             print(f"---- {province['SehirAdiEn']}")
             for district in province['district']:
-                print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py -l {district['IlceAdiEn']}' terminal=false refresh=true")
-
+                print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py' param1=-l param2={district['IlceID']} terminal=false refresh=true")
 
 check_cache()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
-# print_location()
-
-
+print_location()
