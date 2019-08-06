@@ -29,7 +29,6 @@ args = parser.parse_args()
 # Get script fullpath
 SCRIPT_PATH = os.path.dirname(os.path.realpath(sys.argv[0])) + "/"
 
-# TODO: Add "location name" key to ptimes.json file
 # Default location: ANKARA / TURKEY
 default_id = 9206
 
@@ -45,6 +44,9 @@ def update_and_format(data, location_id):
     new_location = {}
     try:
         prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
+        if isinstance(prayer.json(), dict):
+            print ("Invalid location ID. ")
+            return
         new_location["ptimes"] = prayer.json()
         new_location["location_id"] = location_id
         new_location["current"] = True
@@ -76,8 +78,13 @@ def check_cache():
                         locations["current"] = True
                     else:
                         locations["current"] = False
+                for locations in data:
+                        if locations["current"]:
+                            with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
+                                json.dump(data, json_file)
+                            return
                 update_and_format(data, args.location)
-                return
+            return
 
     except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
         # Create cache file and set default location.
@@ -176,9 +183,32 @@ def convert_datetime(filename):
     return
 
 
+# Print current location
+def check_location():
+    current_id = 0
+
+    with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
+        data = json.loads(json_file.read())
+    for location in data:
+        if location["current"]:
+            try:
+                with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
+                    all_places = json.loads(json_file.read())
+                for country in all_places:
+                    for province in country['province']:
+                        for district in province['district']:
+                            if district['IlceID'] == str(location["location_id"]):
+                                print ("---")
+                                print (f"Current location: {province['SehirAdiEn']} / {district['IlceAdiEn']}")
+            except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
+                print ("Error: Location file?")
+    return
+
+
 # Print selectable locations for bitbar plugin
 def print_location():
     print("---")
+    print ("Current Location")
     print("Locations")
     print("-- Select Country")
     with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
@@ -192,4 +222,5 @@ def print_location():
 
 check_cache()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
+check_location()
 print_location()
