@@ -199,7 +199,7 @@ def check_location():
                         for district in province['district']:
                             if district['IlceID'] == str(location["location_id"]):
                                 print ("---")
-                                print (f"Current location: {province['SehirAdiEn']} / {district['IlceAdiEn']} | color=81BEF7")
+                                print (f"Location: {province['SehirAdiEn'].lower().title()} / {district['IlceAdiEn'].lower().title()} | color=blue")
             except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
                 print ("Error: Location file?")
     return
