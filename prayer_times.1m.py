@@ -38,6 +38,7 @@ def errprint(*args, **kwargs):
 
 
 # Updates prayer times for given id and reformats ptimes.json file
+# "data" should be a list object that includes location id, prayer times and current flag.
 def update_and_format(data, location_id):
     url = "https://ezanvakti.herokuapp.com"
     prayer = ""
@@ -45,6 +46,7 @@ def update_and_format(data, location_id):
     try:
         prayer = requests.get(url + "/vakitler?ilce=" + str(location_id))
         if isinstance(prayer.json(), dict):
+            # A valid ID returns a 'list' type while invvalid IDs return a 'dict'
             print ("Invalid location ID. ")
             return
         new_location["ptimes"] = prayer.json()
@@ -59,14 +61,12 @@ def update_and_format(data, location_id):
             errprint("HTTP error 429 (Too Many Requests)")
         else:
             errprint("No network or" + str(prayer))
-
         raise SystemExit(0)
     return
 
 
 # Get prayer times of the selected location
 def check_cache():
-
     try:
         with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
             data = json.loads(json_file.read())
@@ -75,14 +75,18 @@ def check_cache():
             else:
                 for locations in data:
                     if args.location == locations["location_id"]:
+                        # Checks if given location is contained in cache, and sets current flag 'true'...
                         locations["current"] = True
                     else:
+                        #... and other locations to 'false'
                         locations["current"] = False
                 for locations in data:
                         if locations["current"]:
+                            # If given id found in cache and set true, write changes.
                             with open(f"{SCRIPT_PATH}.ptimes.json", "w") as json_file:
                                 json.dump(data, json_file)
                             return
+                # If given ID not found in cache (therefore all flags are false), update the cache with new ID
                 update_and_format(data, args.location)
             return
 
@@ -103,8 +107,6 @@ def rerun(error_text):
 
 # Convert JSON formatted file to datetime object
 def convert_datetime(filename):
-    data = []
-
     try:
         with open(filename, mode="r", encoding="utf-8") as json_file:
             data = json.loads(json_file.read())
@@ -131,8 +133,8 @@ def convert_datetime(filename):
                     isha    = datetime.datetime.strptime(gregorian_date + ptimes["Yatsi"],  date_format)
 
                     try:
-                        fajr_next = datetime.datetime.strptime(
-                            flag["ptimes"][index_nextday]["MiladiTarihKisa"] + flag["ptimes"][index_nextday]["Imsak"], date_format)
+                        fajr_next = datetime.datetime.strptime(flag["ptimes"][index_nextday]["MiladiTarihKisa"] +
+                                                               flag["ptimes"][index_nextday]["Imsak"], date_format)
                     except IndexError:
                         rerun("Cache is outdated, updating...")
                         return
@@ -176,7 +178,7 @@ def convert_datetime(filename):
             update_and_format(new_data,flag["location_id"])
             rerun("Update completed.")
             return
-    # Run with default if no "current" flag set to true
+    # Run with default if somehow no "current" flag set to true
     data = []
     update_and_format(data, default_id)
     rerun("Flag error: all false. Recreating cache...")
@@ -185,8 +187,6 @@ def convert_datetime(filename):
 
 # Print current location
 def check_location():
-    current_id = 0
-
     with open(f"{SCRIPT_PATH}.ptimes.json", mode="r", encoding="utf-8") as json_file:
         data = json.loads(json_file.read())
     for location in data:
@@ -199,7 +199,7 @@ def check_location():
                         for district in province['district']:
                             if district['IlceID'] == str(location["location_id"]):
                                 print ("---")
-                                print (f"Current location: {province['SehirAdiEn']} / {district['IlceAdiEn']}")
+                                print (f"Current location: {province['SehirAdiEn']} / {district['IlceAdiEn']} | color=81BEF7")
             except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
                 print ("Error: Location file?")
     return
@@ -208,7 +208,6 @@ def check_location():
 # Print selectable locations for bitbar plugin
 def print_location():
     print("---")
-    print ("Current Location")
     print("Locations")
     print("-- Select Country")
     with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
