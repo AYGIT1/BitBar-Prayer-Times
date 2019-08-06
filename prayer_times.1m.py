@@ -199,7 +199,7 @@ def check_location():
                         for district in province['district']:
                             if district['IlceID'] == str(location["location_id"]):
                                 print ("---")
-                                print (f"Current location: {province['SehirAdiEn']} / {district['IlceAdiEn']} | color=81BEF7")
+                                print (f"Location: {province['SehirAdiEn'].title()} / {district['IlceAdiEn'].title()} | color=blue")
             except (json.decoder.JSONDecodeError, FileNotFoundError, KeyError) as error:
                 print ("Error: Location file?")
     return
@@ -213,11 +213,11 @@ def print_location():
     with open(f"{SCRIPT_PATH}.places.json", mode="r", encoding="utf-8") as json_file:
         all_places = json.loads(json_file.read())
     for country in all_places:
-        print(f"-- {country['UlkeAdiEn']}")
+        print(f"-- {country['UlkeAdiEn'].title()}")
         for province in country['province']:
-            print(f"---- {province['SehirAdiEn']}")
+            print(f"---- {province['SehirAdiEn'].title()}")
             for district in province['district']:
-                print(f"------ {district['IlceAdiEn']} | bash='{SCRIPT_PATH}prayer_times.1m.py' param1=-l param2={district['IlceID']} terminal=false refresh=true")
+                print(f"------ {district['IlceAdiEn'].title()} | bash='{SCRIPT_PATH}prayer_times.1m.py' param1=-l param2={district['IlceID']} terminal=false refresh=true")
 
 check_cache()
 convert_datetime(f"{SCRIPT_PATH}.ptimes.json")
